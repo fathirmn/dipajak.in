@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<TaxInvoiceBulk xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="TaxInvoice.xsd">
+  <TIN>0201732310404000</TIN>
+  <ListOfTaxInvoice>
+    <TaxInvoice>
+      <TaxInvoiceDate>2025-12-02</TaxInvoiceDate>
+      <TaxInvoiceOpt>Normal</TaxInvoiceOpt>
+      <TrxCode>04</TrxCode>
+      <AddInfo></AddInfo>
+      <CustomDoc></CustomDoc>
+      <CustomDocMonthYear></CustomDocMonthYear>
+      <RefDesc>028/BJP-ABP/INV-010/2024</RefDesc>
+      <FacilityStamp></FacilityStamp>
+      <SellerIDTKU>0201732310404000000000</SellerIDTKU>
+      <BuyerTin>0021932074011000</BuyerTin>
+      <BuyerDocument>TIN</BuyerDocument>
+      <BuyerCountry>IND</BuyerCountry>
+      <BuyerDocumentNumber></BuyerDocumentNumber>
+      <BuyerName>PT.ABDI BORNEO PLANTATIONS</BuyerName>
+      <BuyerAdress>Jl. Jenderal Sudirman no.57, 20 Ilir , Kec. Ilir 1, Kota Palembang, Sumatera Selatan, kode pos 30125</BuyerAdress>
+      <BuyerEmail></BuyerEmail>
+      <BuyerIDTKU>0021932074011000000000</BuyerIDTKU>
+      <ListOfGoodService>
+      <GoodService>
+        <Opt>A</Opt>
+        <Code>000000</Code>
+        <Name>Rock Phosphate 26%-27% P2O5</Name>
+        <Unit>UM.0001</Unit>
+        <Price>2880</Price>
+        <Qty>537900</Qty>
+        <TotalDiscount>0</TotalDiscount>
+        <TaxBase>1549152000</TaxBase>
+        <OtherTaxBase>1549152000</OtherTaxBase>
+        <VATRate>12</VATRate>
+        <VAT>185898240</VAT>
+        <STLGRate>0</STLGRate>
+        <STLG>0</STLG>
+      </GoodService>
+      </ListOfGoodService>
+    </TaxInvoice>
+  </ListOfTaxInvoice>
+</TaxInvoiceBulk>
