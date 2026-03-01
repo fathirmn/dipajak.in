@@ -430,6 +430,49 @@ Example:
 If no MOS line exists on invoice, set mosValue = 0.
 
 ═══════════════════════════════════════════════════════════════════════════════
+SECTION 14: RETENSI (RETENTION) & DP (DOWN PAYMENT) HANDLING
+═══════════════════════════════════════════════════════════════════════════════
+
+PENAGIHAN RETENSI / RETENTION BILLING:
+Invoice shows "PENAGIHAN RETENSI X%" or "RETENSI X%" or "Penagihan Termin X%"
+- Items are listed at their FULL original contract prices
+- The invoiced/billed amount = Subtotal × X%
+- PPN is calculated on the retention amount only (Subtotal × X%)
+
+EXAMPLE (Retensi 10%):
+  Subtotal: 3,067,120,000  ← full value of all items at original prices
+  Retensi 10%: 306,712,000  ← 10% of subtotal = the actual DPP being billed
+  PPN 11%: 33,738,320       ← PPN on the retention amount (306,712,000 × 11%)
+  Total: 340,450,320        ← Retensi + PPN
+
+Extraction rules for Retensi invoices:
+- Extract items with their ORIGINAL full unit prices (exactly as shown)
+- Set retensiPct = 10 (the percentage number only, without %)
+- Set subtotal = sum of original item taxBase (full prices, e.g. 3,067,120,000)
+- Set totalVat = PPN amount from invoice (e.g. 33,738,320)
+- Set grandTotal = as shown on invoice (e.g. 340,450,320)
+- The system will automatically apply: taxBase per item = original × retensiPct/100
+
+DP (DOWN PAYMENT) / UANG MUKA BILLING:
+Invoice shows "DP X%" or "Uang Muka X%" or "Pembayaran Tahap 1 (X%)"
+Same logic as Retensi — items at full price, billing = Subtotal × X%
+
+EXAMPLE (DP 50%):
+  Subtotal: 1,000,000,000
+  DP 50%: 500,000,000
+  PPN 11%: 55,000,000
+  Total: 555,000,000
+
+Extraction rules for DP invoices:
+- Extract items with ORIGINAL full unit prices
+- Set retensiPct = 50
+
+IMPORTANT:
+- retensiPct = 0 means full billing (no retention/DP reduction)
+- If retensiPct > 0, the system handles taxBase reduction — you provide ORIGINAL prices
+- Do NOT manually reduce unitPrice or taxBase when retensiPct > 0
+
+═══════════════════════════════════════════════════════════════════════════════
 CRITICAL REMINDERS
 ═══════════════════════════════════════════════════════════════════════════════
 
@@ -438,9 +481,10 @@ CRITICAL REMINDERS
 3. Verify calculation: grandTotal ≈ subtotal + totalVat
 4. For services (opt="B"), default unitCode to UM.0033 if unclear
 5. For goods (opt="A"), default unitCode to UM.0018 if unclear
-6. Default trxCode to "04" unless clearly indicated otherwise
+6. Default trxCode to "01" for regular B2B, "04" only when explicitly DPP Nilai Lain
 7. Return empty string "" for optional fields not visible in invoice
-8. If MOS line exists, extract mosValue; system handles discount distribution`;
+8. If MOS line exists, extract mosValue; system handles discount distribution
+9. If Retensi/DP line exists, extract retensiPct; system handles taxBase reduction`;
 
 async function extractPdfText(pdfBase64: string): Promise<string> {
   try {
@@ -539,10 +583,19 @@ function validateAndFixResult(result: ExtractedInvoice): ExtractedInvoice {
     }
   }
 
-  // Calculate subtotal before MOS adjustment (sum of original taxBase)
+  // Calculate subtotal before any adjustment (sum of original taxBase)
   const originalSubtotal = result.items.reduce((sum, item) => sum + item.taxBase, 0);
 
+  // Handle Retensi / DP (Down Payment) — apply percentage reduction to each item's taxBase
+  const retensiPct = Number(result.retensiPct) || 0;
+  if (retensiPct > 0 && retensiPct < 100) {
+    for (const item of result.items) {
+      item.taxBase = Math.round(item.taxBase * retensiPct / 100);
+    }
+  }
+
   // Handle MOS (Memo of Sales) - distribute discount proportionally to line items
+  // (MOS is applied after retensi if both somehow exist)
   const mosValue = Number(result.mosValue) || 0;
   if (mosValue > 0 && originalSubtotal > mosValue) {
     // MOS is the discounted DPP, so we distribute the discount proportionally
@@ -578,9 +631,9 @@ function validateAndFixResult(result: ExtractedInvoice): ExtractedInvoice {
     result.originalVatRate = 11;
   }
 
-  // Default trxCode to "04" if missing or invalid
+  // Default trxCode to "01" if missing or invalid
   if (!result.trxCode || !/^(0[1-9]|10)$/.test(result.trxCode)) {
-    result.trxCode = "04";
+    result.trxCode = "01";
   }
 
   // Default buyerDocumentType to "TIN"

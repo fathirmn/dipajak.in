@@ -790,6 +790,16 @@ export function DataForm({ data, onChange }: DataFormProps) {
 
       {/* ── Ringkasan Total ─────────────────────────────────────────── */}
       <div className="border-t border-[rgba(168,162,158,0.1)] pt-6 space-y-3">
+        {data.retensiPct && data.retensiPct > 0 && (
+          <div className="mb-4 p-3 bg-[rgba(5,150,105,0.07)] border border-[rgba(5,150,105,0.2)]">
+            <p className="text-[11px] uppercase tracking-[0.05em] font-medium text-[#059669] mb-1">
+              Penagihan Retensi / DP {data.retensiPct}% Diterapkan
+            </p>
+            <p className="text-xs text-[#A8A29E]" style={{ fontFamily: "var(--font-jetbrains)" }}>
+              DPP per item = Harga Asli × {data.retensiPct}% — Total DPP: Rp {formatCurrency(data.subtotal)}
+            </p>
+          </div>
+        )}
         {data.mosValue && data.mosValue > 0 && (
           <div className="mb-4 p-3 bg-[rgba(217,119,6,0.08)] border border-[rgba(217,119,6,0.2)]">
             <p className="text-[11px] uppercase tracking-[0.05em] font-medium text-[#D97706] mb-1">

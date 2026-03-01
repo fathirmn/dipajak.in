@@ -141,6 +141,7 @@ export default function Home() {
         buyerCountry:             data.buyerCountry || "IND",
         buyerDocumentNumber:      data.buyerDocumentNumber || "-",
         mosValue:                 data.mosValue || 0,
+        retensiPct:               data.retensiPct || 0,
         items:                    data.items || [],
         subtotal:                 data.subtotal || 0,
         totalVat:                 data.totalVat || 0,

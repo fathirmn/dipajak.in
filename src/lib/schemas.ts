@@ -31,6 +31,7 @@ export const ExtractedInvoiceSchema = z.object({
   buyerCountry: z.string().default("IND"),
   buyerDocumentNumber: z.string().default("-"),
   mosValue: z.number().optional().default(0), // Memo of Sales - invoice-level discount
+  retensiPct: z.number().optional().default(0), // Retensi/DP percentage, e.g. 10 for "Retensi 10%", 50 for "DP 50%"
   items: z.array(InvoiceItemSchema),
   subtotal: z.number(),
   totalVat: z.number(),
@@ -68,6 +69,7 @@ export const invoiceJsonSchema = {
     buyerCountry: { type: "string", description: "Buyer country code (IND for Indonesia)" },
     buyerDocumentNumber: { type: "string", description: "Buyer document number, '-' if TIN" },
     mosValue: { type: "number", description: "Memo of Sales (MOS) value - invoice-level discount that becomes the adjusted DPP. If MOS line exists, this is the discounted taxable base. 0 if no MOS." },
+    retensiPct: { type: "number", description: "Retention/DP percentage. E.g. 10 for 'Retensi 10%', 50 for 'DP 50%' or 'Uang Muka 50%'. 0 if no retention/DP." },
     items: {
       type: "array",
       description: "List of invoice line items",
@@ -92,6 +94,6 @@ export const invoiceJsonSchema = {
     totalVat: { type: "number", description: "Total VAT = sum of all vat" },
     grandTotal: { type: "number", description: "Grand total = subtotal + totalVat" },
   },
-  required: ["invoiceNumber", "invoiceDate", "buyerName", "buyerNpwp", "buyerAddress", "buyerEmail", "originalVatRate", "trxCode", "buyerDocumentType", "buyerCountry", "buyerDocumentNumber", "mosValue", "items", "subtotal", "totalVat", "grandTotal"],
+  required: ["invoiceNumber", "invoiceDate", "buyerName", "buyerNpwp", "buyerAddress", "buyerEmail", "originalVatRate", "trxCode", "buyerDocumentType", "buyerCountry", "buyerDocumentNumber", "mosValue", "retensiPct", "items", "subtotal", "totalVat", "grandTotal"],
   additionalProperties: false,
 };
