@@ -146,7 +146,7 @@ USE "03" when: buyer is a non-government VAT collector (BUMN tertentu)
 USE "07" when: invoice mentions "tidak dipungut PPN" or "PPN ditanggung pemerintah"
 USE "08" when: invoice mentions "dibebaskan PPN" or "bebas PPN"
 
-DEFAULT: Use "01" for regular B2B invoices. Use "04" only when there is clear evidence of DPP Nilai Lain.
+DEFAULT: Use "04" for most Indonesian B2B invoices — this is the standard. Use "01" only when clearly NOT a DPP Nilai Lain transaction.
 
 ═══════════════════════════════════════════════════════════════════════════════
 SECTION 4: KETERANGAN TAMBAHAN (ADDITIONAL INFO) - FOR TRXCODE 07
@@ -481,7 +481,7 @@ CRITICAL REMINDERS
 3. Verify calculation: grandTotal ≈ subtotal + totalVat
 4. For services (opt="B"), default unitCode to UM.0033 if unclear
 5. For goods (opt="A"), default unitCode to UM.0018 if unclear
-6. Default trxCode to "01" for regular B2B, "04" only when explicitly DPP Nilai Lain
+6. Default trxCode to "04" (DPP Nilai Lain) — this is the standard for most Indonesian companies
 7. Return empty string "" for optional fields not visible in invoice
 8. If MOS line exists, extract mosValue; system handles discount distribution
 9. If Retensi/DP line exists, extract retensiPct; system handles taxBase reduction`;
@@ -631,9 +631,9 @@ function validateAndFixResult(result: ExtractedInvoice): ExtractedInvoice {
     result.originalVatRate = 11;
   }
 
-  // Default trxCode to "01" if missing or invalid
+  // Default trxCode to "04" if missing or invalid
   if (!result.trxCode || !/^(0[1-9]|10)$/.test(result.trxCode)) {
-    result.trxCode = "01";
+    result.trxCode = "04";
   }
 
   // Default buyerDocumentType to "TIN"

@@ -132,7 +132,7 @@ export default function Home() {
         buyerAddress:             data.buyerAddress || "",
         buyerEmail:               data.buyerEmail || "",
         originalVatRate:          data.originalVatRate || 12,
-        trxCode:                  data.trxCode || "01",
+        trxCode:                  data.trxCode || "04",
         additionalInfo:           data.additionalInfo || "",
         supportingDocument:       data.supportingDocument || "",
         supportingDocumentPeriod: data.supportingDocumentPeriod || "",
