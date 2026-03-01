@@ -46,7 +46,7 @@ SECTION 1: OUTPUT SCHEMA
 - buyerAddress: string (if visible, else "")
 - buyerEmail: string (if visible, else "")
 - buyerDocumentType: string (TIN|National ID|Passport|Other ID, default "TIN")
-- buyerCountry: string (3-letter ISO code, default "IDN")
+- buyerCountry: string (3-letter ISO code, default "IND")
 - buyerDocumentNumber: string ("-" if TIN, else ID number)
 
 ### Transaction Fields
@@ -81,13 +81,35 @@ items[]: {
 SECTION 2: BARANG/JASA (GOODS/SERVICES) DETECTION
 ═══════════════════════════════════════════════════════════════════════════════
 
-opt = "A" (BARANG/GOODS): Physical products, materials, equipment, spare parts
-opt = "B" (JASA/SERVICES): Services, labor, consulting, maintenance, rental, fees
+opt = "A" (BARANG/GOODS): Physical products, materials, equipment, hardware, panels, cables, components
+opt = "B" (JASA/SERVICES): Services, labor, fees, activities — ANYTHING that is NOT a physical product
 
-SERVICE KEYWORDS (→ opt="B"):
-jasa, service, konsultasi, consulting, maintenance, instalasi, installation,
-pelatihan, training, sewa, rental, biaya, fee, support, subscription, warranty,
-pengiriman, delivery, tenaga kerja, labor, perbaikan, repair, cleaning, security
+CRITICAL RULE: If item name starts with "BIAYA" → ALWAYS opt="B" (Jasa), NO EXCEPTION.
+CRITICAL RULE: If item name contains "TESTING", "COMMISSIONING", "INSTALASI", "PENGIRIMAN", "PEMASANGAN" → ALWAYS opt="B".
+
+SERVICE KEYWORDS — if ANY of these appear in item name → opt="B":
+biaya, fee, jasa, service, testing, commissioning, instalasi, installation,
+pemasangan, assembly, pengiriman, delivery, transportasi, transport, freight,
+konsultasi, consulting, maintenance, perawatan, perbaikan, repair,
+pelatihan, training, sewa, rental, support, garansi, warranty, supervision,
+supervisi, inspeksi, inspection, manajemen, management, administrasi,
+tenaga kerja, labor, cleaning, security, handling, mobilisasi, demobilisasi
+
+EXAMPLES (MUST follow exactly):
+- "CUBICLE LBS 630A" → opt="A" (physical panel equipment)
+- "PANEL LVMDP" → opt="A" (physical panel)
+- "KABEL NYY" → opt="A" (physical cable)
+- "BIAYA TESTING COMMISSIONING" → opt="B" (testing service)
+- "BIAYA PENGIRIMAN PANEL" → opt="B" (delivery service)
+- "BIAYA INSTALASI" → opt="B" (installation service)
+- "BIAYA PEMASANGAN" → opt="B" (assembly service)
+- "JASA KONSULTASI" → opt="B" (consulting service)
+- "BIAYA TRANSPORTASI" → opt="B" (transport service)
+
+DECISION LOGIC:
+1. Does item name contain any SERVICE KEYWORD above? → opt="B"
+2. Is it a physical/tangible product you can hold? → opt="A"
+3. When in doubt: "BIAYA ..." prefix ALWAYS = opt="B"
 
 ═══════════════════════════════════════════════════════════════════════════════
 SECTION 3: KODE TRANSAKSI (TRANSACTION CODES)
@@ -104,7 +126,27 @@ SECTION 3: KODE TRANSAKSI (TRANSACTION CODES)
 09 = Penyerahan aktiva yang tidak diperjualbelikan (asset transfer)
 10 = Penyerahan lainnya (other)
 
-DEFAULT: Use "04" unless invoice clearly indicates another code.
+TRANSACTION CODE SELECTION RULES (read carefully):
+
+USE "01" when:
+- Regular B2B sale to a private company (PT, CV, UD, Tbk) — standard invoice
+- No special facility, no government buyer, no DPP Nilai Lain indicator
+- Buyer is an ordinary Indonesian company with NPWP
+- Invoice looks like a normal commercial transaction
+
+USE "04" (DPP Nilai Lain) when:
+- Invoice explicitly mentions "DPP Nilai Lain" or "Nilai Lain"
+- Invoice involves retail/consumer goods where DPP base differs from selling price
+- Mixed goods+services on a single invoice where total DPP differs from subtotal
+- Agency/commission transactions
+- Items are sold at prices that include non-taxable components
+
+USE "02" when: buyer is a government institution (Kementerian, Dinas, BUMN pemungut)
+USE "03" when: buyer is a non-government VAT collector (BUMN tertentu)
+USE "07" when: invoice mentions "tidak dipungut PPN" or "PPN ditanggung pemerintah"
+USE "08" when: invoice mentions "dibebaskan PPN" or "bebas PPN"
+
+DEFAULT: Use "01" for regular B2B invoices. Use "04" only when there is clear evidence of DPP Nilai Lain.
 
 ═══════════════════════════════════════════════════════════════════════════════
 SECTION 4: KETERANGAN TAMBAHAN (ADDITIONAL INFO) - FOR TRXCODE 07
@@ -287,17 +329,17 @@ Other ID = Dokumen Lainnya (Other document)
 
 If buyer has NPWP visible → buyerDocumentType = "TIN", buyerDocumentNumber = "-"
 If buyer only has NIK → buyerDocumentType = "National ID", buyerDocumentNumber = NIK
-If foreign buyer → buyerDocumentType = "Passport" or "Other ID"
+If foreign buyer → buyerDocumentType = "Passport" or "Other ID", buyerCountry = appropriate code (NOT "IND" for Indonesia)
 
 ═══════════════════════════════════════════════════════════════════════════════
 SECTION 10: COUNTRY CODES (COMMON)
 ═══════════════════════════════════════════════════════════════════════════════
 
-IDN = Indonesia (DEFAULT)
+IND = Indonesia (DEFAULT)
 SGP = Singapore, MYS = Malaysia, THA = Thailand, VNM = Vietnam
 CHN = China, JPN = Japan, KOR = South Korea, TWN = Taiwan, HKG = Hong Kong
 USA = United States, GBR = United Kingdom, DEU = Germany, FRA = France
-AUS = Australia, NZL = New Zealand, IND = India, ARE = UAE, SAU = Saudi Arabia
+AUS = Australia, NZL = New Zealand, ARE = UAE, SAU = Saudi Arabia
 
 ═══════════════════════════════════════════════════════════════════════════════
 SECTION 11: EXTRACTION RULES
@@ -355,7 +397,7 @@ TAX-EXEMPT (trxCode = "07" or "08"):
 FOREIGN BUYER:
 - buyerNpwp = "" (empty)
 - buyerDocumentType = "Passport" or "Other ID"
-- buyerCountry = appropriate ISO code (not "IDN")
+- buyerCountry = appropriate ISO code (not "IND")
 - buyerDocumentNumber = passport/ID number
 
 ═══════════════════════════════════════════════════════════════════════════════
@@ -548,7 +590,7 @@ function validateAndFixResult(result: ExtractedInvoice): ExtractedInvoice {
 
   // Default buyerCountry to "IDN"
   if (!result.buyerCountry) {
-    result.buyerCountry = "IDN";
+    result.buyerCountry = "IND";
   }
 
   // Default buyerDocumentNumber to "-" for TIN

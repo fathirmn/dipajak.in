@@ -24,8 +24,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "dipajak.in - Invoice to Efaktur Converter",
-  description: "Convert any invoice to Coretax e-Faktur format using AI",
+  title: "dipajak.in — Konversi Faktur Pajak ke XML Coretax",
+  description:
+    "Ubah faktur pajak (gambar/PDF/Excel) menjadi file XML Coretax e-Faktur DJP secara otomatis menggunakan AI.",
 };
 
 export default function RootLayout({
@@ -34,7 +35,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="id" className="dark">
       <body
         className={`${dmSerifDisplay.variable} ${dmSans.variable} ${jetbrainsMono.variable} font-sans antialiased min-h-screen`}
         style={{ backgroundColor: "#0A0A0B", color: "#F5F5F4" }}

@@ -26,12 +26,12 @@ function generateInvoiceXml(
   invoice: ExtractedInvoice,
   trxCode: string = "04"
 ): string {
-  const sellerIdtku = formatIdtku(seller.npwp);
+  const sellerIdtku = seller.idtku || formatIdtku(seller.npwp);
   const buyerNpwp = invoice.buyerNpwp ? formatNpwp(invoice.buyerNpwp) : "";
   const buyerIdtku = invoice.buyerNpwp ? formatIdtku(invoice.buyerNpwp) : "";
   const originalVatRate = invoice.originalVatRate || 11;
   const buyerDocumentType = (invoice.buyerDocumentType || "TIN").toUpperCase();
-  const buyerCountry = invoice.buyerCountry || "IDN";
+  const buyerCountry = invoice.buyerCountry || "IND";
   const buyerDocumentNumber = invoice.buyerDocumentNumber || "-";
   const buyerTinValue = buyerNpwp || "0000000000000000";
   const buyerIdtkuValue = buyerIdtku || "0000000000000000000000";

@@ -46,6 +46,10 @@ npm run lint   # Run ESLint
 - Buyer without NPWP: use `0000000000000000` for TIN, BuyerDocument must be "TIN"
 - Services (Opt=B) should use UM.0033 (Others) if unit unclear
 
+## AI Model
+
+This project uses **`gpt-5-mini`** (OpenAI) as the AI model for invoice extraction in `src/app/api/parse/route.ts`. Do NOT change this model name — it is intentional.
+
 ## Environment
 
 Requires `OPENAI_API_KEY` in `.env.local`
