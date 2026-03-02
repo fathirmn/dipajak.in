@@ -4,11 +4,12 @@ import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Edit3, BookUser, Save, X, Search, GripVertical } from "lucide-react";
+import { Plus, Trash2, Edit3, BookUser, X, Search, GripVertical, Save } from "lucide-react";
 import type { ExtractedInvoice, InvoiceItem } from "@/lib/schemas";
 import { ValidationPanel } from "@/components/validation-panel";
 import { validateInvoice } from "@/lib/rule-engine";
 import { TRANSACTION_CODES, UNIT_CODE_NAMES } from "@/lib/constants";
+import { useCustomers, type SavedCustomer } from "@/lib/hooks/use-customers";
 
 // Unit groups untuk dropdown satuan
 const UNIT_GROUPS = [
@@ -38,48 +39,23 @@ const UNIT_GROUPS = [
   },
 ];
 
-// ─── Buku Pembeli (Customer Book) ─────────────────────────────────────────────
-
-const CUSTOMERS_KEY = "dipajak_customers";
-
-interface SavedCustomer {
-  id: string;
-  name: string;
-  npwp: string;
-}
-
-function loadCustomers(): SavedCustomer[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(CUSTOMERS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveCustomers(customers: SavedCustomer[]) {
-  localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(customers));
-}
-
 // ─── CustomerBook Component ────────────────────────────────────────────────────
 
 interface CustomerBookProps {
   currentName: string;
   currentNpwp: string;
   onSelect: (name: string, npwp: string) => void;
+  customers: SavedCustomer[];
+  loadingCustomers: boolean;
+  onAdd: (name: string, npwp: string) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
 }
 
-function CustomerBook({ currentName, currentNpwp, onSelect }: CustomerBookProps) {
+function CustomerBook({ currentName, currentNpwp, onSelect, customers, loadingCustomers, onAdd, onDelete }: CustomerBookProps) {
   const [open, setOpen] = useState(false);
-  const [customers, setCustomers] = useState<SavedCustomer[]>([]);
   const [query, setQuery] = useState("");
   const [saveMsg, setSaveMsg] = useState("");
   const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setCustomers(loadCustomers());
-  }, [open]);
 
   // Close on outside click
   useEffect(() => {
@@ -97,23 +73,23 @@ function CustomerBook({ currentName, currentNpwp, onSelect }: CustomerBookProps)
     npwpValid &&
     !customers.some((c) => c.npwp === currentNpwp);
 
-  const handleSave = () => {
-    const newCustomer: SavedCustomer = {
-      id: crypto.randomUUID(),
-      name: currentName.trim(),
-      npwp: currentNpwp,
-    };
-    const updated = [...customers, newCustomer];
-    saveCustomers(updated);
-    setCustomers(updated);
-    setSaveMsg("Tersimpan!");
-    setTimeout(() => setSaveMsg(""), 2000);
+  const handleSave = async () => {
+    try {
+      await onAdd(currentName.trim(), currentNpwp);
+      setSaveMsg("Tersimpan!");
+      setTimeout(() => setSaveMsg(""), 2000);
+    } catch {
+      setSaveMsg("Gagal menyimpan");
+      setTimeout(() => setSaveMsg(""), 2000);
+    }
   };
 
-  const handleDelete = (id: string) => {
-    const updated = customers.filter((c) => c.id !== id);
-    saveCustomers(updated);
-    setCustomers(updated);
+  const handleDelete = async (id: string) => {
+    try {
+      await onDelete(id);
+    } catch {
+      // silent fail
+    }
   };
 
   const handleSelect = (c: SavedCustomer) => {
@@ -142,11 +118,13 @@ function CustomerBook({ currentName, currentNpwp, onSelect }: CustomerBookProps)
       >
         <BookUser className="w-3 h-3" />
         Buku Pembeli
-        {customers.length > 0 && (
+        {loadingCustomers ? (
+          <span className="ml-0.5 text-[9px] text-[#78716C]">...</span>
+        ) : customers.length > 0 ? (
           <span className="ml-0.5 text-[9px] bg-[rgba(217,119,6,0.15)] text-[#D97706] px-1 py-0.5">
             {customers.length}
           </span>
-        )}
+        ) : null}
       </button>
 
       {open && (
@@ -242,6 +220,8 @@ interface DataFormProps {
 }
 
 export function DataForm({ data, onChange }: DataFormProps) {
+  const { customers, loading: loadingCustomers, addCustomer, deleteCustomer } = useCustomers();
+
   if (!data) {
     return (
       <div className="p-6">
@@ -446,9 +426,11 @@ export function DataForm({ data, onChange }: DataFormProps) {
           <CustomerBook
             currentName={data.buyerName}
             currentNpwp={data.buyerNpwp || ""}
-            onSelect={(name, npwp) => {
-              onChange({ ...data, buyerName: name, buyerNpwp: npwp });
-            }}
+            onSelect={(name, npwp) => onChange({ ...data, buyerName: name, buyerNpwp: npwp })}
+            customers={customers}
+            loadingCustomers={loadingCustomers}
+            onAdd={addCustomer}
+            onDelete={deleteCustomer}
           />
         </div>
 

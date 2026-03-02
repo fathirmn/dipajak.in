@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DM_Serif_Display, DM_Sans, JetBrains_Mono } from "next/font/google";
+import { AuthProvider } from "@/lib/supabase/auth-context";
 import "./globals.css";
 
 const dmSerifDisplay = DM_Serif_Display({
@@ -40,7 +41,7 @@ export default function RootLayout({
         className={`${dmSerifDisplay.variable} ${dmSans.variable} ${jetbrainsMono.variable} font-sans antialiased min-h-screen`}
         style={{ backgroundColor: "#0A0A0B", color: "#F5F5F4" }}
       >
-        {children}
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

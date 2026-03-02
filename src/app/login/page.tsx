@@ -2,10 +2,11 @@
 
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -16,16 +17,18 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+      const supabase = createClient();
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error ?? "Login gagal");
+      if (authError) {
+        setError(
+          authError.message === "Invalid login credentials"
+            ? "Email atau password salah"
+            : authError.message
+        );
         return;
       }
 
@@ -68,16 +71,16 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-[11px] text-[#A8A29E] uppercase tracking-[0.06em] mb-1.5">
-                Username
+                Email
               </label>
               <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
-                autoComplete="username"
+                autoComplete="email"
                 className="w-full bg-[rgba(255,255,255,0.03)] border border-[rgba(168,162,158,0.15)] text-[#F5F5F4] text-sm px-3 py-2.5 outline-none focus:border-[rgba(217,119,6,0.5)] transition-colors placeholder:text-[#57534E]"
-                placeholder="Masukkan username"
+                placeholder="email@contoh.com"
               />
             </div>
 

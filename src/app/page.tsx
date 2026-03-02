@@ -4,19 +4,18 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Header } from "@/components/header";
 import { UploadZone } from "@/components/upload-zone";
 import { InvoiceList, type InvoiceFile } from "@/components/invoice-list";
-import { CompanyModal, loadCompanyProfile } from "@/components/company-modal";
+import { CompanyModal } from "@/components/company-modal";
 import { XmlPreviewModal } from "@/components/xml-preview-modal";
 import { Button } from "@/components/ui/button";
 import {
   Download, Loader2, AlertCircle, FileText, Cpu, ArrowRight,
-  CheckCircle2, X, FileSpreadsheet, Eye,
+  CheckCircle2, X, FileSpreadsheet, Eye, Save,
 } from "lucide-react";
 import { imageToBase64, parseExcel, getFileType } from "@/lib/file-handlers";
 import { generateBulkFakturPKXml, downloadXml } from "@/lib/xml-generator";
 import { exportSummaryToExcel } from "@/lib/excel-export";
+import { useCompanyProfiles } from "@/lib/hooks/use-company-profiles";
 import type { ExtractedInvoice, CompanyProfile } from "@/lib/schemas";
-
-const SESSION_KEY = "dipajak_session_invoices";
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("id-ID").format(value);
@@ -34,38 +33,48 @@ export default function Home() {
   const [isProcessing, setIsProcessing]           = useState(false);
   const [toast, setToast]                         = useState<ToastState | null>(null);
   const [xmlPreview, setXmlPreview]               = useState<{ xml: string; filename: string } | null>(null);
+  const [isSaving, setIsSaving]                   = useState(false);
 
   const invoiceFilesRef = useRef(invoiceFiles);
   useEffect(() => { invoiceFilesRef.current = invoiceFiles; }, [invoiceFiles]);
 
-  // ── Restore from sessionStorage ──────────────────────────────────────────────
+  // ── Company profile dari Supabase ────────────────────────────────────────────
+  const { activeProfile } = useCompanyProfiles();
   useEffect(() => {
-    const profile = loadCompanyProfile();
-    setCompanyProfile(profile);
-    if (!profile) setCompanyModalOpen(true);
+    if (activeProfile) {
+      setCompanyProfile(activeProfile);
+    }
+  }, [activeProfile]);
 
-    try {
-      const saved = sessionStorage.getItem(SESSION_KEY);
-      if (saved) {
-        const parsed: InvoiceFile[] = JSON.parse(saved);
-        // Restore only done invoices (file object can't be serialized)
-        const restored = parsed.filter((i) => i.status === "done" && i.data);
-        if (restored.length > 0) setInvoiceFiles(restored);
-      }
-    } catch { /* ignore */ }
+  // Buka modal jika belum ada profil aktif setelah load selesai
+  useEffect(() => {
+    if (activeProfile === null && !companyModalOpen) {
+      // Tunggu sebentar agar hook sempat load
+      const t = setTimeout(() => {
+        if (!invoiceFilesRef.current.length) setCompanyModalOpen(true);
+      }, 1500);
+      return () => clearTimeout(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeProfile]);
+
+  // ── Restore riwayat faktur dari Supabase ─────────────────────────────────────
+  useEffect(() => {
+    fetch("/api/invoices")
+      .then((r) => r.json())
+      .then(({ invoices }) => {
+        if (invoices?.length > 0) {
+          const restored: InvoiceFile[] = invoices.map((inv: { id: string; fileName: string; data: ExtractedInvoice }) => ({
+            id:     inv.id,
+            file:   { name: inv.fileName, size: 0, type: "" } as unknown as File,
+            status: "done" as const,
+            data:   inv.data,
+          }));
+          setInvoiceFiles(restored);
+        }
+      })
+      .catch(() => {}); // abaikan jika gagal
   }, []);
-
-  // ── Persist to sessionStorage on change ─────────────────────────────────────
-  useEffect(() => {
-    if (invoiceFiles.length === 0) return;
-    try {
-      // Only persist done invoices (file blobs can't be serialized)
-      const toSave = invoiceFiles
-        .filter((i) => i.status === "done")
-        .map((i) => ({ ...i, file: { name: i.file.name, size: i.file.size, type: i.file.type } as unknown as File }));
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify(toSave));
-    } catch { /* ignore quota errors */ }
-  }, [invoiceFiles]);
 
   // ── Keyboard shortcuts ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -212,18 +221,72 @@ export default function Home() {
   }, [showToast]);
 
   // ── Update / Remove / Clear ──────────────────────────────────────────────────
+  const isSupabaseId = (id: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
   const handleUpdateInvoice = useCallback((id: string, data: ExtractedInvoice) => {
     setInvoiceFiles((prev) => prev.map((inv) => inv.id === id ? { ...inv, data } : inv));
+    if (isSupabaseId(id)) {
+      fetch(`/api/invoices/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data }),
+      }).catch(() => {});
+    }
   }, []);
 
   const handleRemoveInvoice = useCallback((id: string) => {
     setInvoiceFiles((prev) => prev.filter((inv) => inv.id !== id));
+    if (isSupabaseId(id)) {
+      fetch(`/api/invoices/${id}`, { method: "DELETE" }).catch(() => {});
+    }
   }, []);
 
   const handleClearAll = useCallback(() => {
     setInvoiceFiles([]);
-    sessionStorage.removeItem(SESSION_KEY);
   }, []);
+
+  // ── Save to Supabase ─────────────────────────────────────────────────────────
+  const saveToSupabase = useCallback(async (): Promise<boolean> => {
+    const toSave = invoiceFilesRef.current.filter((inv) => inv.status === "done" && inv.data);
+    if (toSave.length === 0) return false;
+    setIsSaving(true);
+    try {
+      const res = await fetch("/api/invoices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invoices: toSave.map((inv) => ({ fileName: inv.file.name, data: inv.data })),
+        }),
+      });
+      if (!res.ok) return false;
+      // Reload untuk dapat ID Supabase yang asli
+      const { invoices } = await fetch("/api/invoices").then((r) => r.json());
+      if (invoices?.length > 0) {
+        setInvoiceFiles((prev) => {
+          const notDone = prev.filter((inv) => inv.status !== "done" || !inv.data);
+          const restored: InvoiceFile[] = invoices.map((inv: { id: string; fileName: string; data: ExtractedInvoice }) => ({
+            id:     inv.id,
+            file:   { name: inv.fileName, size: 0, type: "" } as unknown as File,
+            status: "done" as const,
+            data:   inv.data,
+          }));
+          return [...restored, ...notDone];
+        });
+      }
+      return true;
+    } catch {
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  }, []);
+
+  const handleSaveSession = useCallback(async () => {
+    const ok = await saveToSupabase();
+    if (ok) showToast("Sesi disimpan ke database");
+    else showToast("Gagal menyimpan sesi", "error");
+  }, [saveToSupabase, showToast]);
 
   // ── Stats ────────────────────────────────────────────────────────────────────
   const completedInvoices = invoiceFiles.filter((inv) => inv.status === "done" && inv.data);
@@ -245,12 +308,13 @@ export default function Home() {
     setXmlPreview({ xml: result.xml, filename });
   };
 
-  const handleDownloadAll = () => {
+  const handleDownloadAll = async () => {
     const result = buildXml();
     if (!result) return;
     const filename = `faktur_pk_bulk_${new Date().toISOString().split("T")[0]}.xml`;
     downloadXml(result.xml, filename);
     showToast(`${completedInvoices.length} faktur diunduh sebagai ${filename}`);
+    void saveToSupabase(); // auto-save ke Supabase di background
   };
 
   const handleExportExcel = () => {
@@ -379,10 +443,25 @@ export default function Home() {
                 Export Excel
               </Button>
 
+              {/* Simpan Sesi */}
+              <Button
+                onClick={handleSaveSession}
+                disabled={isProcessing || isSaving}
+                variant="outline"
+                size="xl"
+                className="flex-1 border-[rgba(168,162,158,0.2)] text-[#A8A29E] hover:border-[rgba(217,119,6,0.4)] hover:text-[#D97706]"
+              >
+                {isSaving ? (
+                  <><Loader2 className="w-5 h-5 mr-2 animate-spin" />Menyimpan...</>
+                ) : (
+                  <><Save className="w-5 h-5 mr-2" />Simpan Sesi</>
+                )}
+              </Button>
+
               {/* Download XML */}
               <Button
                 onClick={handleDownloadAll}
-                disabled={isProcessing}
+                disabled={isProcessing || isSaving}
                 size="xl"
                 className="flex-[2] disabled:bg-[#1C1C1F] disabled:text-[#78716C]"
                 title="Ctrl+D"
@@ -419,7 +498,6 @@ export default function Home() {
       <CompanyModal
         open={companyModalOpen}
         onOpenChange={setCompanyModalOpen}
-        profile={companyProfile}
         onSave={setCompanyProfile}
       />
 
