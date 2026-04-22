@@ -326,8 +326,8 @@ export default function Home() {
 
   // ── Steps guide ──────────────────────────────────────────────────────────────
   const steps = [
-    { icon: FileText,    step: "01", label: "Upload Faktur",  desc: "Seret & lepas faktur dalam format gambar, PDF, atau Excel" },
-    { icon: Cpu,         step: "02", label: "AI Ekstrak Data", desc: "AI membaca dan mengekstrak data faktur secara otomatis" },
+    { icon: FileText,    step: "01", label: "Upload Invoice", desc: "Seret & lepas invoice dalam format gambar, PDF, atau Excel" },
+    { icon: Cpu,         step: "02", label: "AI Ekstrak Data", desc: "AI membaca dan mengekstrak data invoice secara otomatis" },
     { icon: Download,    step: "03", label: "Download XML",    desc: "Unduh XML Coretax siap upload ke e-Faktur DJP" },
   ];
 
@@ -346,7 +346,7 @@ export default function Home() {
                 Otomatisasi e-Faktur Coretax
               </h2>
               <p className="text-[#78716C] text-sm max-w-md mx-auto leading-relaxed">
-                Upload faktur pajak dalam format apapun — AI kami akan mengekstrak data dan
+                Upload invoice dalam format apapun — AI kami akan mengekstrak data dan
                 menghasilkan file XML siap upload ke sistem Coretax DJP.
               </p>
             </div>

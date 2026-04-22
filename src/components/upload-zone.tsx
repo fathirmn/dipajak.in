@@ -91,7 +91,7 @@ export function UploadZone({ onFilesSelect, isLoading, maxFiles = 10 }: UploadZo
       <div className="relative p-6">
         <h3 className="text-xs uppercase tracking-[0.05em] font-medium text-[#78716C] mb-5 flex items-center gap-2">
           <Upload className="w-3.5 h-3.5" />
-          Unggah Faktur
+          Unggah Invoice
         </h3>
 
         <label

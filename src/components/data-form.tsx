@@ -8,7 +8,7 @@ import { Plus, Trash2, Edit3, BookUser, X, Search, GripVertical, Save } from "lu
 import type { ExtractedInvoice, InvoiceItem } from "@/lib/schemas";
 import { ValidationPanel } from "@/components/validation-panel";
 import { validateInvoice } from "@/lib/rule-engine";
-import { TRANSACTION_CODES, UNIT_CODE_NAMES } from "@/lib/constants";
+import { TRANSACTION_CODES, UNIT_CODE_NAMES, calculateDppNilaiLain } from "@/lib/constants";
 import { useCustomers, type SavedCustomer } from "@/lib/hooks/use-customers";
 
 // Unit groups untuk dropdown satuan
@@ -598,7 +598,7 @@ export function DataForm({ data, onChange }: DataFormProps) {
               {/* Row 4: DPP + PPN */}
               <div className="flex items-center justify-between text-xs border-t border-[rgba(168,162,158,0.08)] pt-2">
                 <span className="text-[#78716C]">
-                  DPP <span className="text-[#A8A29E]" style={{ fontFamily: "var(--font-jetbrains)" }}>{formatCurrency(item.taxBase)}</span>
+                  DPP <span className="text-[#A8A29E]" style={{ fontFamily: "var(--font-jetbrains)" }}>{formatCurrency(data.trxCode === "04" ? calculateDppNilaiLain(item.taxBase, data.originalVatRate || 11) : item.taxBase)}</span>
                 </span>
                 <span className="text-[#78716C]">
                   PPN <span className="text-[#D97706]" style={{ fontFamily: "var(--font-jetbrains)" }}>{formatCurrency(item.vat)}</span>
@@ -737,7 +737,7 @@ export function DataForm({ data, onChange }: DataFormProps) {
                     className="px-3 py-2 text-right text-[#A8A29E]"
                     style={{ fontFamily: "var(--font-jetbrains)" }}
                   >
-                    {formatCurrency(item.taxBase)}
+                    {formatCurrency(data.trxCode === "04" ? calculateDppNilaiLain(item.taxBase, data.originalVatRate || 11) : item.taxBase)}
                   </td>
                   <td
                     className="px-3 py-2 text-right text-[#D97706]"

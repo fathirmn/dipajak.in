@@ -454,18 +454,35 @@ Extraction rules for Retensi invoices:
 - The system will automatically apply: taxBase per item = original × retensiPct/100
 
 DP (DOWN PAYMENT) / UANG MUKA BILLING:
-Invoice shows "DP X%" or "Uang Muka X%" or "Pembayaran Tahap 1 (X%)"
-Same logic as Retensi — items at full price, billing = Subtotal × X%
+Invoice shows "DP X%" or "Uang Muka X%" or "Tagihan DP X%" or "Pembayaran Tahap 1 (X%)" or "Uang Muka (X%)"
+
+CRITICAL: These invoices show the FULL contract price per item, then a separate line showing "DP X%" as a summary reduction.
+- unitPrice in items = FULL original contract price (e.g., 24,100,000)
+- The DP/billing amount = Subtotal × X% (this is shown as a separate line, NOT the unit price)
+- DO NOT use the DP billing amount as unit price
 
 EXAMPLE (DP 50%):
-  Subtotal: 1,000,000,000
-  DP 50%: 500,000,000
-  PPN 11%: 55,000,000
-  Total: 555,000,000
+  Items:
+    Panel LVMDP   qty=1   unitPrice=24,100,000   taxBase=24,100,000
+    Kabel NYY     qty=10  unitPrice=500,000       taxBase=5,000,000
+  Subtotal:    29,100,000  ← full contract value
+  DP 50%:      14,550,000  ← 50% of subtotal = DPP being billed
+  PPN 11%:      1,600,500  ← PPN on DP amount (14,550,000 × 11%)
+  Total:       16,150,500
+
+Correct extraction:
+  items[0].unitPrice = 24,100,000  ← FULL price, NOT 12,050,000
+  items[0].taxBase   = 24,100,000  ← FULL taxBase before system applies DP reduction
+  retensiPct = 50                  ← system will reduce taxBase to 50%
+
+WRONG extraction (do NOT do this):
+  items[0].unitPrice = 12,050,000  ← WRONG: this is already the 50% DP amount
+  retensiPct = 0                   ← WRONG: missing DP indicator
 
 Extraction rules for DP invoices:
-- Extract items with ORIGINAL full unit prices
-- Set retensiPct = 50
+- ALWAYS set retensiPct = X when you see "DP X%", "Uang Muka X%", "Tagihan DP X%"
+- ALWAYS extract items with ORIGINAL full unit prices (the price listed next to the item)
+- NEVER use the DP summary line amount as unit price
 
 IMPORTANT:
 - retensiPct = 0 means full billing (no retention/DP reduction)
@@ -586,11 +603,13 @@ function validateAndFixResult(result: ExtractedInvoice): ExtractedInvoice {
   // Calculate subtotal before any adjustment (sum of original taxBase)
   const originalSubtotal = result.items.reduce((sum, item) => sum + item.taxBase, 0);
 
-  // Handle Retensi / DP (Down Payment) — apply percentage reduction to each item's taxBase
+  // Handle Retensi / DP (Down Payment) — apply percentage reduction to unitPrice and taxBase
   const retensiPct = Number(result.retensiPct) || 0;
   if (retensiPct > 0 && retensiPct < 100) {
+    const ratio = retensiPct / 100;
     for (const item of result.items) {
-      item.taxBase = Math.round(item.taxBase * retensiPct / 100);
+      item.unitPrice = Math.round(item.unitPrice * ratio);
+      item.taxBase = Math.round(item.quantity * item.unitPrice - item.discount);
     }
   }
 
@@ -688,21 +707,25 @@ export async function POST(req: NextRequest) {
           { type: "input_text", text: `Invoice data extracted from PDF:\n\n${pdfText}` },
         ];
       } else {
-        // Fall back to image conversion for scanned PDFs or poor text extraction
+        // Try local image conversion (for environments where canvas is available)
         const pdfImages = await convertPdfToImages(imageBase64);
 
-        if (pdfImages.length === 0) {
-          return NextResponse.json(
-            { error: "Failed to process PDF. Please try uploading as an image instead." },
-            { status: 400 }
-          );
+        if (pdfImages.length > 0) {
+          messageContent = pdfImages.map((img) => ({
+            type: "input_image" as const,
+            image_url: `data:image/png;base64,${img}`,
+            detail: "high" as const,
+          }));
+        } else {
+          // Fallback: send PDF directly to OpenAI (works for scanned PDFs too)
+          messageContent = [
+            {
+              type: "input_file",
+              filename: "invoice.pdf",
+              file_data: `data:application/pdf;base64,${imageBase64}`,
+            } as any,
+          ];
         }
-
-        messageContent = pdfImages.map((img) => ({
-          type: "input_image" as const,
-          image_url: `data:image/png;base64,${img}`,
-          detail: "high" as const,
-        }));
       }
     } else if (imageBase64) {
       messageContent = [
